@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadForge AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="scoring.js"></script>
+<style>
+:root{
+  --bg:#08090c; --panel:#0d0f14; --panel-2:#111419; --line:#1c2027;
+  --line-2:#262b33; --txt:#e6e8ec; --txt-dim:#8b909b; --txt-faint:#5a606b;
+  --accent:#5b7cff; --accent-soft:#5b7cff22; --good:#3ecf8e; --warn:#f2c14e;
+  --bad:#ff6b6b; --crit:#ff4d6d; --radius:10px;
+  --mono:'IBM Plex Mono',monospace; --sans:'Sora',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5}
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(800px 500px at 85% -10%, #5b7cff14, transparent 60%),
+  radial-gradient(600px 400px at 0% 100%, #3ecf8e0d, transparent 60%);pointer-events:none;z-index:0}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13px}
+.mono{font-family:var(--mono)}
+a{color:var(--accent);text-decoration:none}
+
+#authView{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-card{width:100%;max-width:380px;background:linear-gradient(180deg,#0e1116,#0b0d11);border:1px solid var(--line);border-radius:16px;padding:34px 30px;box-shadow:0 30px 80px -20px #000a}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:26px}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#9b5bff);position:relative;box-shadow:0 0 24px var(--accent-soft)}
+.brand .logo::after{content:'';position:absolute;inset:8px;border-radius:3px;border:2px solid #fff9;border-right-color:transparent;border-bottom-color:transparent}
+.brand b{font-weight:600;font-size:16px;letter-spacing:-.02em}
+.brand b span{color:var(--txt-dim);font-weight:400}
+.auth-card h1{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
+.auth-card p.sub{color:var(--txt-dim);font-size:13px;margin-bottom:22px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt-faint);margin-bottom:6px}
+.field input{width:100%;background:#070809;border:1px solid var(--line-2);color:var(--txt);padding:10px 12px;border-radius:8px;outline:none;transition:.15s}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:8px;font-weight:500;font-size:13px;transition:.15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#6d8aff;box-shadow:0 4px 20px var(--accent-soft)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt)}
+.btn-ghost:hover{background:#161a20}
+.btn-block{width:100%}
+.divider{display:flex;align-items:center;gap:12px;color:var(--txt-faint);font-size:11px;margin:16px 0}
+.divider::before,.divider::after{content:'';height:1px;flex:1;background:var(--line)}
+.auth-switch{text-align:center;margin-top:18px;color:var(--txt-dim);font-size:13px}
+.auth-switch a{cursor:pointer}
+.auth-err{background:#ff6b6b14;border:1px solid #ff6b6b44;color:#ff9b9b;padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:14px;display:none}
+
+#appView{display:none;position:relative;z-index:1;min-height:100vh}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.side{border-right:1px solid var(--line);background:#0a0c10;padding:18px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.side .brand{margin:6px 8px 22px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;color:var(--txt-dim);font-size:13px;font-weight:500;transition:.12s}
+.nav-item:hover{background:var(--panel-2);color:var(--txt)}
+.nav-item.active{background:var(--accent-soft);color:#aab9ff}
+.nav-item svg{width:16px;height:16px;opacity:.85}
+.side .spacer{flex:1}
+.user-chip{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);font-size:12px}
+.user-chip .av{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#5b7cff,#9b5bff);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:#fff}
+.user-chip .em{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt-dim)}
+.user-chip button{color:var(--txt-faint)}
+.user-chip button:hover{color:var(--bad)}
+
+.main{padding:26px 30px;max-width:1320px;width:100%}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;gap:16px;flex-wrap:wrap}
+.page-head h2{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.page-head p{color:var(--txt-dim);font-size:13px;margin-top:3px}
+.page{display:none}.page.active{display:block;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.grid{display:grid;gap:14px}
+.stat-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.stat{padding:16px 18px}
+.stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt-faint)}
+.stat .v{font-size:28px;font-weight:600;letter-spacing:-.02em;margin-top:8px}
+.stat .v small{font-size:14px;color:var(--txt-dim);font-weight:400}
+.stat .sub{font-size:12px;color:var(--txt-dim);margin-top:4px}
+
+.search-row{display:grid;grid-template-columns:1.4fr 1.4fr .9fr .9fr;gap:10px;align-items:end}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt-faint);margin-bottom:6px;display:block}
+.ctrl{width:100%;background:#070809;border:1px solid var(--line-2);color:var(--txt);padding:9px 11px;border-radius:8px;outline:none;transition:.15s}
+.ctrl:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea.ctrl{resize:vertical;min-height:90px;font-family:var(--mono);font-size:12px;line-height:1.6}
+.hint{font-size:12px;color:var(--txt-faint);margin-top:8px}
+
+.tbl-wrap{overflow:auto;border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt-faint);font-weight:500;padding:11px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
+td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.lead-row{cursor:pointer;transition:.1s}
+tr.lead-row:hover{background:var(--panel-2)}
+.biz-name{font-weight:500}
+.biz-url{font-size:12px;color:var(--txt-faint);font-family:var(--mono)}
+.score-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-weight:500;font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid}
+.s-EXCELLENT{color:var(--good);border-color:#3ecf8e44;background:#3ecf8e12}
+.s-GOOD{color:#8fd9c0;border-color:#3ecf8e33;background:#3ecf8e0a}
+.s-AVERAGE{color:var(--warn);border-color:#f2c14e44;background:#f2c14e12}
+.s-POOR{color:#ff9b6b;border-color:#ff8a5c44;background:#ff8a5c12}
+.s-CRITICAL{color:var(--crit);border-color:#ff4d6d44;background:#ff4d6d12}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt-dim);margin:2px 3px 2px 0}
+.status-sel{background:#070809;border:1px solid var(--line-2);color:var(--txt);border-radius:6px;padding:4px 6px;font-size:12px}
+.opp{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.opp.critical{color:var(--crit)}.opp.high{color:#ff9b6b}.opp.medium{color:var(--warn)}.opp.low{color:var(--txt-dim)}
+
+.empty{padding:50px 20px;text-align:center;color:var(--txt-faint)}
+.empty svg{width:40px;height:40px;opacity:.4;margin-bottom:12px}
+.bar{height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+.bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#9b5bff);transition:width .3s}
+
+.drawer-bg{position:fixed;inset:0;background:#000a;backdrop-filter:blur(3px);z-index:40;display:none}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:min(560px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:41;transform:translateX(100%);transition:.28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:none}
+.drawer.open{transform:none}
+.drawer-head{padding:22px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+.drawer-body{padding:22px 24px;display:flex;flex-direction:column;gap:22px}
+.dim-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.dim{padding:12px;border:1px solid var(--line);border-radius:8px}
+.dim .name{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt-faint);display:flex;justify-content:space-between}
+.dim .num{font-size:22px;font-weight:600;margin:6px 0 8px;font-family:var(--mono)}
+.dim .why{font-size:11px;color:var(--txt-faint);line-height:1.4}
+.sec-title{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--txt-faint);margin-bottom:10px;font-weight:500}
+.finding{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.finding:last-child{border:none}
+.dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+.dot.critical{background:var(--crit)}.dot.high{background:#ff9b6b}.dot.medium{background:var(--warn)}.dot.low{background:var(--good)}
+.finding .ftext b{font-weight:500;font-size:13px}
+.finding .ftext span{display:block;color:var(--txt-faint);font-size:12px}
+.summary-box{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;color:var(--txt)}
+.outreach-block{margin-bottom:14px}
+.outreach-block h4{font-size:12px;color:var(--txt-dim);margin-bottom:6px}
+.outreach-block li{font-size:12.5px;color:var(--txt);margin-left:16px;margin-bottom:4px;line-height:1.5}
+.conf{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--txt-dim)}
+.conf .bar{flex:1}
+.x{position:absolute;top:20px;right:22px;color:var(--txt-faint);font-size:20px}
+.x:hover{color:var(--txt)}
+
+.chart-card{padding:18px}
+.chart-card h3{font-size:13px;font-weight:500;margin-bottom:16px;color:var(--txt-dim)}
+.barchart{display:flex;flex-direction:column;gap:9px}
+.barchart .row{display:grid;grid-template-columns:90px 1fr 38px;align-items:center;gap:10px;font-size:12px}
+.barchart .row .nm{color:var(--txt-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barchart .track{height:18px;background:var(--panel-2);border-radius:5px;overflow:hidden}
+.barchart .track > i{display:block;height:100%;border-radius:5px}
+.funnel{display:flex;flex-direction:column;gap:6px}
+.funnel .seg{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-radius:7px;font-size:12px;background:linear-gradient(90deg,var(--accent-soft),transparent);border:1px solid var(--line)}
+.funnel .seg b{font-family:var(--mono)}
+
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search-inp{background:#070809;border:1px solid var(--line-2);color:var(--txt);padding:8px 11px;border-radius:8px;outline:none;min-width:200px}
+.search-inp:focus{border-color:var(--accent)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#161a20;border:1px solid var(--line-2);padding:11px 18px;border-radius:10px;font-size:13px;z-index:60;opacity:0;transition:.25s;box-shadow:0 10px 40px #000a}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.settings-row{display:flex;flex-direction:column;gap:6px;max-width:560px;margin-bottom:18px}
+.settings-row label{font-size:13px;font-weight:500}
+.settings-row .desc{font-size:12px;color:var(--txt-faint)}
+@media(max-width:860px){.shell{grid-template-columns:1fr}.side{position:fixed;z-index:30;transform:translateX(-100%);transition:.2s}.side.open{transform:none}.search-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div id="authView">
+  <div class="auth-card">
+    <div class="brand"><div class="logo"></div><b>Lead<span>Forge</span></b></div>
+    <h1 id="authTitle">Welcome back</h1>
+    <p class="sub" id="authSub">Sign in to your prospecting workspace.</p>
+    <div class="auth-err" id="authErr"></div>
+    <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@agency.com" autocomplete="email" /></div>
+    <div class="field"><label>Password</label><input type="password" id="password" placeholder="••••••••" autocomplete="current-password" /></div>
+    <button class="btn btn-primary btn-block" id="authBtn">Sign in</button>
+    <div class="divider">or</div>
+    <button class="btn btn-ghost btn-block" id="googleBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.7 3.3-7.9z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.7 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2 7.1l3.7 2.8C6.6 7.4 9.1 5.4 12 5.4z"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-switch" id="authSwitch">New here? <a id="switchLink">Create an account</a></div>
+    <p class="hint" style="margin-top:18px;text-align:center" id="fbWarn"></p>
+  </div>
+</div>
+
+<div id="appView">
+  <div class="shell">
+    <aside class="side" id="side">
+      <div class="brand"><div class="logo"></div><b>Lead<span>Forge</span></b></div>
+      <a class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Dashboard</a>
+      <a class="nav-item" data-page="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Discover &amp; Audit</a>
+      <a class="nav-item" data-page="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Leads</a>
+      <a class="nav-item" data-page="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Analytics</a>
+      <a class="nav-item" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 12a7.5 7.5 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1z"/></svg>Settings</a>
+      <div class="spacer"></div>
+      <div class="user-chip"><div class="av" id="uav">U</div><div class="em" id="uem">user</div><button id="logoutBtn" title="Sign out">⎋</button></div>
+    </aside>
+
+    <main class="main">
+      <section class="page active" id="page-dashboard">
+        <div class="page-head"><div><h2>Dashboard</h2><p>Pipeline overview across all audited leads.</p></div>
+          <button class="btn btn-primary" data-goto="search">+ New Audit</button></div>
+        <div class="grid stat-grid" id="statGrid"></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:14px">
+          <div class="panel chart-card"><h3>Leads by Opportunity</h3><div class="barchart" id="oppChart"></div></div>
+          <div class="panel chart-card"><h3>Conversion Funnel</h3><div class="funnel" id="funnelChart"></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-search">
+        <div class="page-head"><div><h2>Discover &amp; Audit</h2><p>Add businesses, then run real website audits via PageSpeed + the audit worker.</p></div></div>
+        <div class="panel" style="padding:20px;margin-bottom:14px">
+          <div class="search-row">
+            <div><label class="lbl">City</label><input class="ctrl" id="fCity" placeholder="Miami" /></div>
+            <div><label class="lbl">Industry</label>
+              <select class="ctrl" id="fIndustry">
+                <option>Roofing</option><option>HVAC</option><option>Plumbing</option><option>Landscaping</option>
+                <option>Tree Services</option><option>Auto Repair</option><option>Restaurants</option>
+                <option>Dentists</option><option>Law Firms</option><option>Other</option>
+              </select></div>
+            <div><label class="lbl">Radius</label><select class="ctrl" id="fRadius"><option>5 mi</option><option>10 mi</option><option selected>25 mi</option><option>50 mi</option></select></div>
+            <div></div>
+          </div>
+          <div style="margin-top:14px">
+            <label class="lbl">Businesses — one per line: <span style="color:var(--txt-dim)">Name, website</span> (or just a website)</label>
+            <textarea class="ctrl" id="fList" placeholder="ABC Roofing, abcroofing.com&#10;Sunshine HVAC, sunshinehvac.com&#10;miamiplumbingpros.com"></textarea>
+            <p class="hint">Discovery via Google Places needs a billing-enabled key (paid). This free build audits the businesses you add — auditing itself is fully real.</p>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button class="btn btn-primary" id="runBtn">Run Audits</button>
+            <span class="hint" id="runHint" style="margin:0"></span>
+          </div>
+          <div id="runProgress" style="margin-top:16px;display:none">
+            <div class="bar"><i id="progBar" style="width:0%"></i></div>
+            <p class="hint" id="progTxt" style="margin-top:8px"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-leads">
+        <div class="page-head"><div><h2>Leads</h2><p id="leadCount">0 leads</p></div>
+          <div class="toolbar">
+            <input class="search-inp" id="leadSearch" placeholder="Search name, city, industry…" />
+            <select class="status-sel" id="statusFilter"><option value="">All statuses</option>
+              <option>NEW</option><option>CONTACTED</option><option>QUALIFIED</option><option>PROPOSAL_SENT</option><option>WON</option><option>LOST</option></select>
+            <button class="btn btn-ghost" id="csvBtn">Export CSV</button>
+            <button class="btn btn-ghost" id="xlsBtn">Export Excel</button>
+          </div></div>
+        <div class="panel tbl-wrap">
+          <table><thead><tr><th>Business</th><th>Industry</th><th>City</th><th>Score</th><th>Opportunity</th><th>Status</th><th>Tags</th></tr></thead>
+          <tbody id="leadBody"></tbody></table>
+          <div class="empty" id="leadEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><p>No leads yet. Run your first audit in Discover &amp; Audit.</p></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-analytics">
+        <div class="page-head"><div><h2>Analytics</h2><p>Distribution across your audited pipeline.</p></div></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+          <div class="panel chart-card"><h3>Leads by Industry</h3><div class="barchart" id="indChart"></div></div>
+          <div class="panel chart-card"><h3>Leads by City</h3><div class="barchart" id="cityChart"></div></div>
+          <div class="panel chart-card"><h3>Average Dimension Scores</h3><div class="barchart" id="dimChart"></div></div>
+          <div class="panel chart-card"><h3>Score Distribution</h3><div class="barchart" id="distChart"></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-head"><div><h2>Settings</h2><p>Configure the audit backend. Stored in your browser only.</p></div></div>
+        <div class="panel" style="padding:22px;max-width:640px">
+          <div class="settings-row">
+            <label>Audit Worker URL</label>
+            <span class="desc">Your deployed Cloudflare Worker (worker.js). Without it, SSL/header/HTML checks are skipped and only PageSpeed runs.</span>
+            <input class="ctrl" id="setWorker" placeholder="https://leadforge-audit.yoursubdomain.workers.dev" />
+          </div>
+          <div class="settings-row">
+            <label>PageSpeed Insights API Key <span style="color:var(--txt-faint)">(optional)</span></label>
+            <span class="desc">Free, no billing. Raises quota. If your Worker already has PSI_KEY set, leave this blank.</span>
+            <input class="ctrl" id="setPsi" placeholder="AIza…" />
+          </div>
+          <button class="btn btn-primary" id="saveSet">Save settings</button>
+          <p class="hint" id="setStatus"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="drawer-bg" id="drawerBg"></div>
+<div class="drawer" id="drawer"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, updateDoc,
+  query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* Replace with your Firebase project's config (console.firebase.google.com).
+   Enable Email/Password + Google auth, and create a Firestore database. */
+const firebaseConfig = {
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME.firebaseapp.com",
+  projectId: "REPLACE_ME",
+  appId: "REPLACE_ME",
+};
+const CONFIGURED = !firebaseConfig.apiKey.includes("REPLACE_ME");
+let app, auth, db, user=null, DEMO=false;
+let LEADS = [];
+const LS = { worker:'lf_worker', psi:'lf_psi' };
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* AUTH */
+let signupMode=false;
+function renderAuthMode(){
+  $('#authTitle').textContent = signupMode?'Create your workspace':'Welcome back';
+  $('#authSub').textContent = signupMode?'Start prospecting in minutes.':'Sign in to your prospecting workspace.';
+  $('#authBtn').textContent = signupMode?'Create account':'Sign in';
+  $('#authSwitch').innerHTML = signupMode?'Have an account? <a id="switchLink">Sign in</a>':'New here? <a id="switchLink">Create an account</a>';
+  $('#switchLink').onclick=()=>{signupMode=!signupMode;renderAuthMode();};
+}
+function authError(m){const e=$('#authErr');e.textContent=m;e.style.display='block';}
+renderAuthMode();
+
+if(!CONFIGURED){
+  $('#fbWarn').innerHTML='⚠ Firebase not configured. Add your config in the source, or try <a id="demoLink">demo mode</a> (data is local &amp; temporary).';
+  setTimeout(()=>{const d=$('#demoLink'); if(d) d.onclick=enterDemo;},0);
+}else{
+  app=initializeApp(firebaseConfig); auth=getAuth(app); db=getFirestore(app);
+  onAuthStateChanged(auth,u=>{ if(u){user=u; enterApp();} else { user=null; showAuth(); } });
+}
+
+$('#authBtn').onclick=async()=>{
+  if(!CONFIGURED){authError('Firebase not configured — try demo mode below.');return;}
+  const em=$('#email').value.trim(), pw=$('#password').value;
+  if(!em||!pw){authError('Enter email and password.');return;}
+  $('#authBtn').disabled=true;
+  try{
+    if(signupMode) await createUserWithEmailAndPassword(auth,em,pw);
+    else await signInWithEmailAndPassword(auth,em,pw);
+  }catch(e){authError(e.message.replace('Firebase: ','')); $('#authBtn').disabled=false;}
+};
+$('#googleBtn').onclick=async()=>{
+  if(!CONFIGURED){authError('Firebase not configured — try demo mode below.');return;}
+  try{ await signInWithPopup(auth,new GoogleAuthProvider()); }
+  catch(e){authError(e.message.replace('Firebase: ',''));}
+};
+$('#logoutBtn').onclick=async()=>{ if(CONFIGURED&&auth&&!DEMO) await signOut(auth); else {user=null;DEMO=false;showAuth();} };
+function enterDemo(){DEMO=true;user={uid:'demo',email:'demo@local'};enterApp();}
+function showAuth(){$('#appView').style.display='none';$('#authView').style.display='flex';}
+async function enterApp(){
+  $('#authView').style.display='none';$('#appView').style.display='block';
+  $('#uem').textContent=user.email||'user';
+  $('#uav').textContent=(user.email||'U')[0].toUpperCase();
+  $('#setWorker').value=localStorage.getItem(LS.worker)||'';
+  $('#setPsi').value=localStorage.getItem(LS.psi)||'';
+  await loadLeads(); renderAll();
+}
+
+/* DATA */
+async function loadLeads(){
+  if(DEMO){ LEADS = JSON.parse(sessionStorage.getItem('lf_demo')||'[]'); return; }
+  const snap=await getDocs(query(collection(db,'leads'),where('uid','==',user.uid)));
+  LEADS=snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+function persistDemo(){ sessionStorage.setItem('lf_demo',JSON.stringify(LEADS)); }
+async function saveLead(lead){
+  if(DEMO){ lead.id='d'+Math.random().toString(36).slice(2); LEADS.push(lead); persistDemo(); return lead; }
+  const ref=await addDoc(collection(db,'leads'),{...lead,uid:user.uid,createdAt:serverTimestamp()});
+  lead.id=ref.id; LEADS.push(lead); return lead;
+}
+async function patchLead(id,patch){
+  const l=LEADS.find(x=>x.id===id); if(l) Object.assign(l,patch);
+  if(DEMO){persistDemo();return;}
+  await updateDoc(doc(db,'leads',id),patch);
+}
+async function removeLead(id){
+  LEADS=LEADS.filter(x=>x.id!==id);
+  if(DEMO){persistDemo();return;}
+  await deleteDoc(doc(db,'leads',id));
+}
+
+/* AUDIT */
+function workerUrl(){return (localStorage.getItem(LS.worker)||'').replace(/\/$/,'');}
+async function auditWebsite(url){
+  const w=workerUrl();
+  if(!w) return await psiOnly(url);
+  const psi=localStorage.getItem(LS.psi);
+  const u=new URL(w+'/audit'); u.searchParams.set('url',url); if(psi) u.searchParams.set('psiKey',psi);
+  const res=await fetch(u); if(!res.ok) throw new Error('Worker error '+res.status);
+  return await res.json();
+}
+async function psiOnly(url){
+  let u=url; if(!/^https?:/i.test(u)) u='https://'+u;
+  const key=localStorage.getItem(LS.psi);
+  async function run(strategy){
+    const api=new URL('https://www.googleapis.com/pagespeedonline/v5/runPagespeed');
+    api.searchParams.set('url',u);api.searchParams.set('strategy',strategy);
+    ['performance','seo','accessibility','best-practices'].forEach(c=>api.searchParams.append('category',c));
+    if(key)api.searchParams.set('key',key);
+    try{const r=await fetch(api);if(!r.ok)return{available:false};const d=await r.json();
+      const cats=d.lighthouseResult?.categories||{},a=d.lighthouseResult?.audits||{};
+      const p=c=>cats[c]?.score!=null?Math.round(cats[c].score*100):null;
+      return{available:true,performance:p('performance'),seo:p('seo'),accessibility:p('accessibility'),
+        bestPractices:p('best-practices'),lcpMs:a['largest-contentful-paint']?.numericValue??null,
+        cls:a['cumulative-layout-shift']?.numericValue??null,viewportPass:a['viewport']?.score===1};
+    }catch{return{available:false};}
+  }
+  const[mobile,desktop]=await Promise.all([run('mobile'),run('desktop')]);
+  return{url:u,security:{https:u.startsWith('https'),validTls:u.startsWith('https'),error:'worker not set'},
+    html:{error:'worker not set'},psi:{mobile,desktop}};
+}
+
+/* SUMMARY + OUTREACH from real findings */
+function genSummary(biz,audit){
+  const f=audit.findings.filter(x=>x.severity!=='low').map(x=>x.label.toLowerCase());
+  const lead=`${biz.name||'This business'} scores ${audit.overall}/10 (${audit.rating.toLowerCase()}).`;
+  if(!f.length) return `${lead} The site performs well across speed, mobile, SEO, security, and conversion — position as optimization/maintenance rather than rebuild.`;
+  return `${lead} Key gaps: ${f.slice(0,3).join(', ')}. Addressing these would directly improve lead capture and search visibility — a clear redesign/optimization opportunity.`;
+}
+function genOutreach(biz,audit){
+  const email=[],call=[],value=[];
+  const has=l=>audit.findings.some(f=>f.label.toLowerCase().includes(l));
+  if(has('https')||has('security')){email.push("Noticed your site isn't fully secured with HTTPS — visitors may see a 'Not Secure' warning.");value.push('SSL + security hardening (trust + ranking signal)');}
+  if(has('slow')){email.push('Your homepage loads slowly on mobile, where most local searches happen.');value.push('Performance rebuild targeting <2.5s mobile load');}
+  if(has('mobile')){call.push('Ask what share of their traffic is mobile, then note the mobile gaps.');value.push('Mobile-first responsive redesign');}
+  if(has('booking')||has('conversion')||has('form')){email.push("There's no easy way for visitors to request a quote online — likely leaving leads on the table.");call.push('Frame around captured-vs-lost leads from the missing quote form.');value.push('Online quote / booking funnel');}
+  if(has('seo')){email.push('A few SEO fixes (titles, meta, structure) could lift your local search visibility.');value.push('Local SEO foundation');}
+  if(!email.length)email.push('Your site looks solid — wanted to share a couple of optimization ideas to push conversion higher.');
+  call.push(`Open with a specific observation (${audit.rating.toLowerCase()} overall score) so it doesn't feel generic.`);
+  return{emailPoints:email,callPoints:call,valueProps:value};
+}
+
+/* RUN BATCH */
+function parseList(txt){
+  return txt.split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{
+    const parts=line.split(',').map(s=>s.trim());
+    if(parts.length>=2) return {name:parts[0],website:parts.slice(1).join(',')};
+    return {name:'',website:parts[0]};
+  });
+}
+$('#runBtn').onclick=async()=>{
+  const items=parseList($('#fList').value);
+  if(!items.length){$('#runHint').textContent='Add at least one business.';return;}
+  const city=$('#fCity').value.trim(), industry=$('#fIndustry').value;
+  $('#runBtn').disabled=true; $('#runProgress').style.display='block';
+  let done=0;
+  for(const it of items){
+    $('#progTxt').textContent=`Auditing ${it.website}…`;
+    let lead={ name:it.name||it.website, website:it.website, city, industry,
+      status:'NEW', tags:[], notes:'', createdAtMs:Date.now() };
+    try{
+      const raw=await auditWebsite(it.website);
+      const audit=window.LeadForgeScoring.computeAudit(raw);
+      lead.audit=audit; lead.overall=audit.overall; lead.rating=audit.rating; lead.confidence=audit.confidence;
+      lead.opp = audit.overall<3?'critical':audit.overall<5?'high':audit.overall<7?'medium':'low';
+      lead.summary=genSummary(lead,audit); lead.outreach=genOutreach(lead,audit);
+    }catch(e){ lead.error=String(e.message||e); lead.rating='—'; lead.overall=null; lead.opp='medium'; }
+    await saveLead(lead);
+    done++; $('#progBar').style.width=Math.round(done/items.length*100)+'%';
+  }
+  $('#progTxt').textContent=`Done — ${done} audited.`;
+  $('#runBtn').disabled=false; toast(`${done} lead(s) audited`);
+  renderAll(); go('leads');
+  setTimeout(()=>{$('#runProgress').style.display='none';$('#progBar').style.width='0%';$('#fList').value='';},900);
+};
+
+/* RENDER */
+const RATINGS=['EXCELLENT','GOOD','AVERAGE','POOR','CRITICAL'];
+function renderAll(){renderStats();renderDash();renderLeads();renderAnalytics();}
+function renderStats(){
+  const audited=LEADS.filter(l=>l.overall!=null);
+  const high=LEADS.filter(l=>l.opp==='high'||l.opp==='critical').length;
+  const avg=audited.length?(audited.reduce((a,l)=>a+l.overall,0)/audited.length).toFixed(1):'—';
+  const won=LEADS.filter(l=>l.status==='WON').length;
+  $('#statGrid').innerHTML=[
+    ['Total Leads',LEADS.length,''],
+    ['High-Opportunity',high,'critical + high'],
+    ['Avg Website Score',`${avg}<small>/10</small>`,`${audited.length} audited`],
+    ['Won',won,'closed deals'],
+  ].map(([k,v,s])=>`<div class="panel stat"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${s}</div></div>`).join('');
+}
+function barRows(map,color){
+  const max=Math.max(1,...Object.values(map));
+  return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+    `<div class="row"><div class="nm">${esc(k)}</div><div class="track"><i style="width:${v/max*100}%;background:${color}"></i></div><div class="mono">${v}</div></div>`).join('')||'<p class="hint">No data yet.</p>';
+}
+function renderDash(){
+  const opp={Critical:0,High:0,Medium:0,Low:0};
+  LEADS.forEach(l=>{const o=(l.opp||'low');opp[o[0].toUpperCase()+o.slice(1)]++;});
+  $('#oppChart').innerHTML=barRows(opp,'linear-gradient(90deg,#ff4d6d,#ff9b6b)');
+  $('#funnelChart').innerHTML=['NEW','CONTACTED','QUALIFIED','PROPOSAL_SENT','WON'].map(s=>{
+    const n=LEADS.filter(l=>l.status===s).length;
+    return `<div class="seg"><span>${s.replace('_',' ')}</span><b>${n}</b></div>`;}).join('');
+}
+function renderAnalytics(){
+  const ind={},city={};
+  LEADS.forEach(l=>{ind[l.industry||'—']=(ind[l.industry||'—']||0)+1;city[l.city||'—']=(city[l.city||'—']||0)+1;});
+  $('#indChart').innerHTML=barRows(ind,'linear-gradient(90deg,#5b7cff,#9b5bff)');
+  $('#cityChart').innerHTML=barRows(city,'linear-gradient(90deg,#3ecf8e,#5b7cff)');
+  const audited=LEADS.filter(l=>l.audit?.scores);
+  const keys={Speed:'speed',Mobile:'mobile',SEO:'seo',Design:'design',Conversion:'conversion',Security:'security'};
+  const dims={};Object.keys(keys).forEach(k=>dims[k]=0);
+  if(audited.length)for(const[label,key]of Object.entries(keys))dims[label]=+(audited.reduce((a,l)=>a+(l.audit.scores[key]||0),0)/audited.length).toFixed(1);
+  $('#dimChart').innerHTML=barRows(dims,'linear-gradient(90deg,#5b7cff,#3ecf8e)');
+  const dist={};RATINGS.forEach(r=>dist[r]=LEADS.filter(l=>l.rating===r).length);
+  $('#distChart').innerHTML=barRows(dist,'linear-gradient(90deg,#f2c14e,#ff6b6b)');
+}
+let leadFilter={q:'',status:''};
+function renderLeads(){
+  const rows=LEADS.filter(l=>{
+    const q=leadFilter.q.toLowerCase();
+    const match=!q||[l.name,l.city,l.industry,l.website].some(x=>(x||'').toLowerCase().includes(q));
+    return match && (!leadFilter.status||l.status===leadFilter.status);
+  }).sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));
+  $('#leadCount').textContent=`${rows.length} lead${rows.length!==1?'s':''}`;
+  $('#leadEmpty').style.display=rows.length?'none':'block';
+  $('#leadBody').innerHTML=rows.map(l=>{
+    const score=l.overall!=null?`<span class="score-pill s-${l.rating}">${l.overall} · ${l.rating[0]+l.rating.slice(1).toLowerCase()}</span>`:`<span class="hint">${l.error?'error':'—'}</span>`;
+    const tags=(l.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
+    const statusOpts=['NEW','CONTACTED','QUALIFIED','PROPOSAL_SENT','WON','LOST'].map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('');
+    return `<tr class="lead-row" data-id="${l.id}">
+      <td><div class="biz-name">${esc(l.name)}</div><div class="biz-url">${esc(l.website)}</div></td>
+      <td>${esc(l.industry||'—')}</td><td>${esc(l.city||'—')}</td>
+      <td>${score}</td>
+      <td><span class="opp ${l.opp||'low'}">${(l.opp||'low')}</span></td>
+      <td><select class="status-sel" data-status="${l.id}">${statusOpts}</select></td>
+      <td>${tags||'<span class="hint">—</span>'}</td></tr>`;
+  }).join('');
+  $$('#leadBody tr.lead-row').forEach(tr=>tr.onclick=e=>{ if(e.target.tagName==='SELECT')return; openDrawer(tr.dataset.id);});
+  $$('[data-status]').forEach(sel=>{ sel.onclick=e=>e.stopPropagation();
+    sel.onchange=e=>{patchLead(e.target.dataset.status,{status:e.target.value}).then(()=>{renderStats();renderDash();});};});
+}
+$('#leadSearch').oninput=e=>{leadFilter.q=e.target.value;renderLeads();};
+$('#statusFilter').onchange=e=>{leadFilter.status=e.target.value;renderLeads();};
+
+function openDrawer(id){
+  const l=LEADS.find(x=>x.id===id); if(!l)return;
+  const a=l.audit;
+  const dimHtml=a?Object.entries({Speed:'speed',Mobile:'mobile',SEO:'seo',Design:'design',Conversion:'conversion',Security:'security'}).map(([label,key])=>{
+    const sc=a.scores[key],det=a.dimDetail&&a.dimDetail[key]?a.dimDetail[key].why:'';
+    return `<div class="dim"><div class="name"><span>${label}</span></div><div class="num">${sc}<span style="font-size:12px;color:var(--txt-faint)">/10</span></div><div class="why">${esc(det)}</div></div>`;
+  }).join(''):'';
+  const findHtml=a?a.findings.map(f=>`<div class="finding"><span class="dot ${f.severity}"></span><div class="ftext"><b>${esc(f.label)}</b>${f.detail?`<span>${esc(f.detail)}</span>`:''}</div></div>`).join(''):'';
+  const o=l.outreach, href=/^https?:/.test(l.website)?l.website:'https://'+l.website;
+  const drawer=$('#drawer');
+  drawer.innerHTML=`
+    <div class="drawer-head">
+      <span class="x" id="drawerX">✕</span>
+      <div class="biz-name" style="font-size:18px;font-weight:600">${esc(l.name)}</div>
+      <a class="biz-url" href="${esc(href)}" target="_blank" rel="noopener">${esc(l.website)} ↗</a>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${l.overall!=null?`<span class="score-pill s-${l.rating}">${l.overall}/10 · ${l.rating}</span>`:`<span class="hint">${esc(l.error||'not audited')}</span>`}
+        <span class="opp ${l.opp||'low'}">${(l.opp||'low')} opportunity</span>
+      </div>
+    </div>
+    <div class="drawer-body">
+      ${a?`<div class="conf">Audit confidence <div class="bar"><i style="width:${a.confidence}%"></i></div><span class="mono">${a.confidence}%</span></div>`:''}
+      ${l.summary?`<div><div class="sec-title">Executive Summary</div><div class="summary-box">${esc(l.summary)}</div></div>`:''}
+      ${a?`<div><div class="sec-title">Audit Dimensions</div><div class="dim-grid">${dimHtml}</div></div>`:''}
+      ${a?`<div><div class="sec-title">Opportunity Findings</div>${findHtml}</div>`:''}
+      ${o?`<div><div class="sec-title">Outreach Assistant</div>
+        <div class="outreach-block"><h4>Email talking points</h4><ul>${o.emailPoints.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>
+        <div class="outreach-block"><h4>Phone-call talking points</h4><ul>${o.callPoints.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>
+        <div class="outreach-block"><h4>Value propositions</h4><ul>${o.valueProps.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div></div>`:''}
+      <div><div class="sec-title">CRM</div>
+        <label class="lbl">Tags (comma-separated)</label>
+        <input class="ctrl" id="dTags" value="${esc((l.tags||[]).join(', '))}" />
+        <label class="lbl" style="margin-top:10px">Notes</label>
+        <textarea class="ctrl" id="dNotes" style="min-height:70px">${esc(l.notes||'')}</textarea>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary" id="dSave">Save</button>
+          <button class="btn btn-ghost" id="dDel" style="color:var(--bad)">Delete lead</button>
+        </div>
+      </div>
+    </div>`;
+  $('#drawerBg').style.display='block';drawer.style.display='block';requestAnimationFrame(()=>drawer.classList.add('open'));
+  $('#drawerX').onclick=closeDrawer;$('#drawerBg').onclick=closeDrawer;
+  $('#dSave').onclick=async()=>{
+    const tags=$('#dTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+    await patchLead(id,{tags,notes:$('#dNotes').value});toast('Saved');renderLeads();
+  };
+  $('#dDel').onclick=async()=>{if(confirm('Delete this lead?')){await removeLead(id);closeDrawer();renderAll();toast('Deleted');}};
+}
+function closeDrawer(){const d=$('#drawer');d.classList.remove('open');$('#drawerBg').style.display='none';setTimeout(()=>d.style.display='none',280);}
+
+/* EXPORT */
+function leadRows(){
+  return LEADS.map(l=>({
+    Business:l.name,Website:l.website,Industry:l.industry||'',City:l.city||'',
+    Score:l.overall??'',Rating:l.rating||'',Opportunity:l.opp||'',Status:l.status,
+    Speed:l.audit?.scores.speed??'',Mobile:l.audit?.scores.mobile??'',SEO:l.audit?.scores.seo??'',
+    Design:l.audit?.scores.design??'',Conversion:l.audit?.scores.conversion??'',Security:l.audit?.scores.security??'',
+    Confidence:l.confidence??'',Tags:(l.tags||[]).join('; '),Summary:l.summary||''
+  }));
+}
+function download(name,blob){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+$('#csvBtn').onclick=()=>{
+  const rows=leadRows();if(!rows.length){toast('No leads to export');return;}
+  const cols=Object.keys(rows[0]);
+  const csv=[cols.join(','),...rows.map(r=>cols.map(c=>`"${String(r[c]).replace(/"/g,'""')}"`).join(','))].join('\n');
+  download('leadforge-leads.csv',new Blob([csv],{type:'text/csv'}));toast('CSV exported');
+};
+$('#xlsBtn').onclick=async()=>{
+  const rows=leadRows();if(!rows.length){toast('No leads to export');return;}
+  const XLSX=await import('https://cdn.sheetjs.com/xlsx-0.20.2/package/xlsx.mjs');
+  const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Leads');XLSX.writeFile(wb,'leadforge-leads.xlsx');toast('Excel exported');
+};
+
+/* NAV + SETTINGS */
+function go(page){
+  $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page));
+  $$('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));
+  $('#side').classList.remove('open');
+}
+$$('.nav-item').forEach(n=>n.onclick=()=>go(n.dataset.page));
+$$('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));
+$('#saveSet').onclick=()=>{
+  localStorage.setItem(LS.worker,$('#setWorker').value.trim());
+  localStorage.setItem(LS.psi,$('#setPsi').value.trim());
+  $('#setStatus').textContent='Saved. '+(workerUrl()?'Worker connected.':'No worker — running PageSpeed-only mode.');
+  toast('Settings saved');
+};
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+</script>
+</body>
+</html>
