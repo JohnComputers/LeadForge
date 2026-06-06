@@ -11,7 +11,8 @@ Local-business website auditor + lead CRM. Linear-style dark UI. Static site (Gi
 | Scoring, opportunity detection, confidence | **Real** — deterministic, computed from measured data (`scoring.js`) |
 | Auth (email + Google), CRM, tags, notes, status, export | **Real** — Firebase + SheetJS |
 | Executive summary + outreach points | Templated from real findings (swap for an LLM call if you add a key) |
-| **Auto-discovery** ("search Miami → 250 businesses") | **Not included** — Google Places requires a billing-enabled key (paid) and bulk export violates its ToS. You add businesses manually; auditing them is fully real. |
+| **Discovery** ("find local businesses, flag no-website ones") | **Real, free** — OpenStreetMap via Overpass + Nominatim, through the Worker. Coverage is **partial** (only businesses mapped in OSM) — a free lead source, not a complete market scan. |
+| Full-coverage discovery ("every roofer in Miami") | **Not included** — needs a paid data API (Google Places w/ billing, or a B2B provider). Drop-in swap point. |
 
 ## Setup (all free)
 
@@ -48,7 +49,20 @@ Without the Worker the app still runs in **PageSpeed-only mode** (no SSL/header/
 Push `index.html` + `scoring.js` to a GitHub repo → enable Pages. Add your Pages origin to the Worker's `ALLOWED_ORIGIN` for tighter CORS.
 
 ## Usage
-Discover & Audit → enter city/industry, paste businesses (`Name, website` per line) → Run Audits → review scores, findings, and outreach in the Leads drawer → export CSV/Excel.
+**Discover** → enter city + industry → finds local businesses, pre-selects the no-website ones → "Add selected to leads." No-website businesses become greenfield leads (no audit — there's nothing to audit); businesses *with* a site get audited automatically on import.
+
+**Audit** → paste businesses you already have URLs for (`Name, website` per line) → real PageSpeed + Worker audit.
+
+Review everything in the **Leads** drawer (scores, findings, contact info, outreach). Export CSV/Excel.
+
+## Worker endpoints
+- `GET /audit?url=…` — full website audit (security + HTML + PageSpeed)
+- `GET /discover?city=…&industry=…&radius=10&noWebsite=1` — OSM business discovery
+
+## Discovery notes
+- Data is OpenStreetMap (Overpass + Nominatim) — free, no key, no billing. Be a good citizen: it's rate-limited and shared infrastructure, so don't hammer it.
+- Coverage varies by area and category. Missing businesses ≠ no businesses; they're just unmapped. Phone/email appear only when present in OSM tags.
+- The Worker sends a `User-Agent` to Nominatim as its usage policy requires — keep it set.
 
 ## Files
 - `index.html` — app (UI, auth, CRM, audit orchestration, charts, export)

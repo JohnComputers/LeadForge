@@ -110,6 +110,8 @@ tr.lead-row:hover{background:var(--panel-2)}
 .status-sel{background:#070809;border:1px solid var(--line-2);color:var(--txt);border-radius:6px;padding:4px 6px;font-size:12px}
 .opp{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
 .opp.critical{color:var(--crit)}.opp.high{color:#ff9b6b}.opp.medium{color:var(--warn)}.opp.low{color:var(--txt-dim)}
+.badge-nw{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#ffd27a;background:#f2c14e1c;border:1px solid #f2c14e44;padding:2px 7px;border-radius:5px}
+.badge-has{font-size:12px;color:var(--txt-faint);font-family:var(--mono)}
 
 .empty{padding:50px 20px;text-align:center;color:var(--txt-faint)}
 .empty svg{width:40px;height:40px;opacity:.4;margin-bottom:12px}
@@ -190,7 +192,8 @@ tr.lead-row:hover{background:var(--panel-2)}
     <aside class="side" id="side">
       <div class="brand"><div class="logo"></div><b>Lead<span>Forge</span></b></div>
       <a class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Dashboard</a>
-      <a class="nav-item" data-page="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Discover &amp; Audit</a>
+      <a class="nav-item" data-page="discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5l-2 5-5 2 2-5z"/></svg>Discover</a>
+      <a class="nav-item" data-page="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Audit</a>
       <a class="nav-item" data-page="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Leads</a>
       <a class="nav-item" data-page="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Analytics</a>
       <a class="nav-item" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 12a7.5 7.5 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1z"/></svg>Settings</a>
@@ -209,8 +212,47 @@ tr.lead-row:hover{background:var(--panel-2)}
         </div>
       </section>
 
+      <section class="page" id="page-discover">
+        <div class="page-head"><div><h2>Discover</h2><p>Find local businesses via OpenStreetMap. Flag the ones with no website — your highest-intent leads.</p></div></div>
+        <div class="panel" style="padding:20px;margin-bottom:14px">
+          <div class="search-row">
+            <div><label class="lbl">City</label><input class="ctrl" id="dCity" placeholder="Miami, FL" /></div>
+            <div><label class="lbl">Industry</label>
+              <select class="ctrl" id="dIndustry">
+                <option>Roofing</option><option>HVAC</option><option>Plumbing</option><option>Landscaping</option>
+                <option>Tree Services</option><option>Auto Repair</option><option>Restaurants</option>
+                <option>Dentists</option><option>Law Firms</option><option>Electrician</option><option>Other</option>
+              </select></div>
+            <div><label class="lbl">Radius</label><select class="ctrl" id="dRadius"><option value="5">5 mi</option><option value="10" selected>10 mi</option><option value="25">25 mi</option><option value="50">50 mi</option></select></div>
+            <div><label class="lbl">Filter</label><select class="ctrl" id="dOnly"><option value="1">No website only</option><option value="0">All businesses</option></select></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button class="btn btn-primary" id="discBtn">Find Businesses</button>
+            <span class="hint" id="discHint" style="margin:0">Coverage is partial — treat as a free lead source, not a full market scan.</span>
+          </div>
+        </div>
+        <div class="panel tbl-wrap" id="discResultsWrap" style="display:none">
+          <div style="padding:13px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <span class="hint" id="discSummary" style="margin:0"></span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" id="discSelAll">Select all</button>
+              <button class="btn btn-primary" id="discImport">Add selected to leads</button>
+            </div>
+          </div>
+          <table><thead><tr>
+            <th style="width:36px"><input type="checkbox" id="discCheckAll" /></th>
+            <th>Business</th><th>Website</th><th>Phone</th><th>Address</th>
+          </tr></thead><tbody id="discBody"></tbody></table>
+        </div>
+        <div class="panel" id="discEmpty" style="display:none"><div class="empty">No businesses found here. Try a larger radius, a different industry, or "All businesses".</div></div>
+        <div id="discProgress" style="margin-top:14px;display:none">
+          <div class="bar"><i id="discBar" style="width:0%"></i></div>
+          <p class="hint" id="discProgTxt" style="margin-top:8px"></p>
+        </div>
+      </section>
+
       <section class="page" id="page-search">
-        <div class="page-head"><div><h2>Discover &amp; Audit</h2><p>Add businesses, then run real website audits via PageSpeed + the audit worker.</p></div></div>
+        <div class="page-head"><div><h2>Audit</h2><p>Audit businesses you already have a website for — real PageSpeed + Worker checks.</p></div></div>
         <div class="panel" style="padding:20px;margin-bottom:14px">
           <div class="search-row">
             <div><label class="lbl">City</label><input class="ctrl" id="fCity" placeholder="Miami" /></div>
@@ -521,7 +563,7 @@ function renderLeads(){
   $('#leadCount').textContent=`${rows.length} lead${rows.length!==1?'s':''}`;
   $('#leadEmpty').style.display=rows.length?'none':'block';
   $('#leadBody').innerHTML=rows.map(l=>{
-    const score=l.overall!=null?`<span class="score-pill s-${l.rating}">${l.overall} · ${l.rating[0]+l.rating.slice(1).toLowerCase()}</span>`:`<span class="hint">${l.error?'error':'—'}</span>`;
+    const score=l.needsWebsite?`<span class="badge-nw">needs website</span>`:(l.overall!=null?`<span class="score-pill s-${l.rating}">${l.overall} · ${l.rating[0]+l.rating.slice(1).toLowerCase()}</span>`:`<span class="hint">${l.error?'error':'—'}</span>`);
     const tags=(l.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('');
     const statusOpts=['NEW','CONTACTED','QUALIFIED','PROPOSAL_SENT','WON','LOST'].map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('');
     return `<tr class="lead-row" data-id="${l.id}">
@@ -555,7 +597,7 @@ function openDrawer(id){
       <div class="biz-name" style="font-size:18px;font-weight:600">${esc(l.name)}</div>
       <a class="biz-url" href="${esc(href)}" target="_blank" rel="noopener">${esc(l.website)} ↗</a>
       <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        ${l.overall!=null?`<span class="score-pill s-${l.rating}">${l.overall}/10 · ${l.rating}</span>`:`<span class="hint">${esc(l.error||'not audited')}</span>`}
+        ${l.needsWebsite?`<span class="badge-nw">needs website</span>`:(l.overall!=null?`<span class="score-pill s-${l.rating}">${l.overall}/10 · ${l.rating}</span>`:`<span class="hint">${esc(l.error||'not audited')}</span>`)}
         <span class="opp ${l.opp||'low'}">${(l.opp||'low')} opportunity</span>
       </div>
     </div>
@@ -568,6 +610,7 @@ function openDrawer(id){
         <div class="outreach-block"><h4>Email talking points</h4><ul>${o.emailPoints.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>
         <div class="outreach-block"><h4>Phone-call talking points</h4><ul>${o.callPoints.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>
         <div class="outreach-block"><h4>Value propositions</h4><ul>${o.valueProps.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div></div>`:''}
+      ${(l.phone||l.email)?`<div><div class="sec-title">Contact</div><div class="summary-box" style="display:flex;flex-direction:column;gap:6px">${l.phone?`<div>📞 ${esc(l.phone)}</div>`:''}${l.email?`<div>✉ <a href="mailto:${esc(l.email)}">${esc(l.email)}</a></div>`:''}</div></div>`:''}
       <div><div class="sec-title">CRM</div>
         <label class="lbl">Tags (comma-separated)</label>
         <input class="ctrl" id="dTags" value="${esc((l.tags||[]).join(', '))}" />
@@ -593,6 +636,7 @@ function closeDrawer(){const d=$('#drawer');d.classList.remove('open');$('#drawe
 function leadRows(){
   return LEADS.map(l=>({
     Business:l.name,Website:l.website,Industry:l.industry||'',City:l.city||'',
+    Phone:l.phone||'',Email:l.email||'',Source:l.source||'manual',NeedsWebsite:l.needsWebsite?'yes':'no',
     Score:l.overall??'',Rating:l.rating||'',Opportunity:l.opp||'',Status:l.status,
     Speed:l.audit?.scores.speed??'',Mobile:l.audit?.scores.mobile??'',SEO:l.audit?.scores.seo??'',
     Design:l.audit?.scores.design??'',Conversion:l.audit?.scores.conversion??'',Security:l.audit?.scores.security??'',
@@ -611,6 +655,81 @@ $('#xlsBtn').onclick=async()=>{
   const XLSX=await import('https://cdn.sheetjs.com/xlsx-0.20.2/package/xlsx.mjs');
   const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Leads');XLSX.writeFile(wb,'leadforge-leads.xlsx');toast('Excel exported');
+};
+
+/* DISCOVERY (OSM/Overpass via Worker) */
+let DISC=[]; // current discovery results
+$('#discBtn').onclick=async()=>{
+  const w=workerUrl();
+  if(!w){ $('#discHint').textContent='Discovery needs the Cloudflare Worker — set its URL in Settings.'; go('settings'); return; }
+  const city=$('#dCity').value.trim();
+  if(!city){ $('#discHint').textContent='Enter a city.'; return; }
+  const industry=$('#dIndustry').value, radius=$('#dRadius').value, only=$('#dOnly').value;
+  $('#discBtn').disabled=true; $('#discHint').textContent='Searching OpenStreetMap…';
+  $('#discResultsWrap').style.display='none'; $('#discEmpty').style.display='none';
+  try{
+    const u=new URL(w+'/discover');
+    u.searchParams.set('city',city); u.searchParams.set('industry',industry);
+    u.searchParams.set('radius',radius); u.searchParams.set('noWebsite',only);
+    const res=await fetch(u); const data=await res.json();
+    if(data.error){ $('#discHint').textContent='Error: '+data.error; $('#discBtn').disabled=false; return; }
+    DISC=data.results||[];
+    if(!DISC.length){ $('#discEmpty').style.display='block'; $('#discHint').textContent='Done — 0 results.'; $('#discBtn').disabled=false; return; }
+    $('#discSummary').textContent=`${data.total} found · ${data.noWebsiteCount} with no website · ${esc(data.city||city)}`;
+    renderDiscovery();
+    $('#discResultsWrap').style.display='block';
+    $('#discHint').textContent='Select businesses and add them to your leads.';
+  }catch(e){ $('#discHint').textContent='Error: '+(e.message||e); }
+  $('#discBtn').disabled=false;
+};
+function renderDiscovery(){
+  $('#discBody').innerHTML=DISC.map((r,i)=>`
+    <tr>
+      <td><input type="checkbox" class="disc-chk" data-i="${i}" ${!r.hasWebsite?'checked':''}/></td>
+      <td><div class="biz-name">${esc(r.name)}</div>${r.email?`<div class="biz-url">${esc(r.email)}</div>`:''}</td>
+      <td>${r.hasWebsite?`<a class="badge-has" href="${esc(/^https?:/.test(r.website)?r.website:'https://'+r.website)}" target="_blank" rel="noopener">${esc(r.website)} ↗</a>`:'<span class="badge-nw">needs website</span>'}</td>
+      <td>${esc(r.phone||'—')}</td>
+      <td style="color:var(--txt-dim);font-size:12px">${esc(r.address||'—')}</td>
+    </tr>`).join('');
+}
+$('#discCheckAll').onchange=e=>{$$('.disc-chk').forEach(c=>c.checked=e.target.checked);};
+$('#discSelAll').onclick=()=>{$$('.disc-chk').forEach(c=>c.checked=true);$('#discCheckAll').checked=true;};
+$('#discImport').onclick=async()=>{
+  const picked=$$('.disc-chk').filter(c=>c.checked).map(c=>DISC[+c.dataset.i]);
+  if(!picked.length){toast('Select at least one');return;}
+  const city=$('#dCity').value.trim(), industry=$('#dIndustry').value;
+  const toAudit=picked.filter(r=>r.hasWebsite);
+  $('#discImport').disabled=true;
+  $('#discProgress').style.display='block'; let done=0;
+  for(const r of picked){
+    let lead={ name:r.name, website:r.website||'', city, industry, status:'NEW',
+      tags:r.hasWebsite?[]:['needs-website'], notes:'', createdAtMs:Date.now(),
+      phone:r.phone||'', email:r.email||'', source:'osm', needsWebsite:!r.hasWebsite };
+    if(r.hasWebsite){
+      $('#discProgTxt').textContent=`Auditing ${r.website}…`;
+      try{
+        const raw=await auditWebsite(r.website);
+        const audit=window.LeadForgeScoring.computeAudit(raw);
+        lead.audit=audit; lead.overall=audit.overall; lead.rating=audit.rating; lead.confidence=audit.confidence;
+        lead.opp=audit.overall<3?'critical':audit.overall<5?'high':audit.overall<7?'medium':'low';
+        lead.summary=genSummary(lead,audit); lead.outreach=genOutreach(lead,audit);
+      }catch(e){ lead.error=String(e.message||e); lead.overall=null; lead.opp='medium'; }
+    }else{
+      // No website = maximum opportunity, no audit possible.
+      lead.overall=null; lead.opp='critical';
+      lead.summary=`${r.name} has no website listed. This is a greenfield opportunity — pitch a first website rather than a redesign.`;
+      lead.outreach={ emailPoints:[`Noticed ${r.name} doesn't have a website yet — you're likely losing customers who search online before they call.`],
+        callPoints:['Lead with how many local customers search online first.','Offer a simple, fast starter site (booking + quote form) as the entry point.'],
+        valueProps:['First professional website','Google Business Profile + local SEO setup','Online quote/booking form'] };
+    }
+    await saveLead(lead);
+    done++; $('#discBar').style.width=Math.round(done/picked.length*100)+'%';
+  }
+  $('#discProgTxt').textContent=`Added ${done} lead(s)${toAudit.length?` — ${toAudit.length} audited`:''}.`;
+  $('#discImport').disabled=false;
+  toast(`${done} lead(s) added`);
+  renderAll(); 
+  setTimeout(()=>{go('leads');$('#discProgress').style.display='none';$('#discBar').style.width='0%';},700);
 };
 
 /* NAV + SETTINGS */
