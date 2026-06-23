@@ -116,20 +116,34 @@ function computeAudit(raw) {
     conversion: scoreConversion(html),
     security: scoreSecurity(sec),
   };
-  const s = Object.fromEntries(Object.entries(dims).map(([k, v]) => [k, v.score ?? 5]));
-  const overall = Object.entries(WEIGHTS).reduce((acc, [k, w]) => acc + s[k] * w, 0);
-  const findings = buildFindings(s, sec, html, psi);
-  // Confidence: how much real data backed the scores.
-  let conf = 40;
-  if (m?.available) conf += 35;
-  if (!html?.error) conf += 15;
-  if (!sec?.error) conf += 10;
+  // Only average over dimensions that actually produced a score; reweight the rest.
+  const available = Object.entries(dims).filter(([k, v]) => v.score != null);
+  const totalW = available.reduce((acc, [k]) => acc + (WEIGHTS[k] || 0), 0) || 1;
+  const overall = available.reduce((acc, [k, v]) => acc + v.score * ((WEIGHTS[k] || 0) / totalW), 0);
+  const s = Object.fromEntries(Object.entries(dims).map(([k, v]) => [k, v.score]));
+
+  const findings = buildFindings(
+    Object.fromEntries(Object.entries(dims).map(([k, v]) => [k, v.score ?? 10])), // missing ≠ problem
+    sec, html, psi
+  );
+
+  // Confidence reflects how much real data backed the scores.
+  let conf = 30;
+  if (m?.available) conf += 40; else conf -= 10;
+  if (html && !html.error) conf += 18;
+  if (sec && !sec.error) conf += 12;
+  conf = Math.max(5, Math.min(100, conf));
+
+  const psiError = (!m?.available && m?.error) ? m.error : null;
+
   return {
     scores: s, dimDetail: dims,
     overall: Math.round(overall * 10) / 10,
     rating: ratingFor(overall),
     findings,
-    confidence: Math.min(100, conf),
+    confidence: conf,
+    psiError,
+    psiAvailable: !!m?.available,
     raw,
   };
 }
