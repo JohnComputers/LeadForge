@@ -126,27 +126,51 @@ async function runPsi(url, strategy, key) {
   api.searchParams.set('strategy', strategy);
   ['performance', 'seo', 'accessibility', 'best-practices'].forEach(c => api.searchParams.append('category', c));
   if (key) api.searchParams.set('key', key);
+
+  // PageSpeed can be slow; give it room but cap so the Worker doesn't hang.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 55000);
   try {
-    const res = await fetch(api.toString());
-    if (!res.ok) return { error: `PSI ${res.status}`, available: false };
-    const data = await res.json();
-    const cats = data.lighthouseResult?.categories || {};
-    const audits = data.lighthouseResult?.audits || {};
+    const res = await fetch(api.toString(), { signal: ctrl.signal });
+    const text = await res.text(); // read once as text so we can show non-JSON errors
+    let data;
+    try { data = JSON.parse(text); }
+    catch { return { available: false, error: `Non-JSON response (HTTP ${res.status}): ${text.slice(0, 160)}` }; }
+
+    if (!res.ok || data.error) {
+      const msg = data.error?.message || `HTTP ${res.status}`;
+      const reason = data.error?.errors?.[0]?.reason || '';
+      return { available: false, error: msg, reason, httpStatus: res.status };
+    }
+
+    const lr = data.lighthouseResult;
+    if (!lr) return { available: false, error: 'No lighthouseResult in response' };
+    const cats = lr.categories || {};
+    const audits = lr.audits || {};
     const pct = c => (cats[c]?.score != null ? Math.round(cats[c].score * 100) : null);
+
+    // Field data (real Chrome UX) if present, else lab data.
+    const lcp = audits['largest-contentful-paint']?.numericValue ?? null;
     return {
       available: true,
       performance: pct('performance'),
       seo: pct('seo'),
       accessibility: pct('accessibility'),
       bestPractices: pct('best-practices'),
-      lcpMs: audits['largest-contentful-paint']?.numericValue ?? null,
+      lcpMs: lcp,
+      fcpMs: audits['first-contentful-paint']?.numericValue ?? null,
       tbtMs: audits['total-blocking-time']?.numericValue ?? null,
       cls: audits['cumulative-layout-shift']?.numericValue ?? null,
+      speedIndexMs: audits['speed-index']?.numericValue ?? null,
       totalBytes: audits['total-byte-weight']?.numericValue ?? null,
       viewportPass: audits['viewport']?.score === 1,
+      finalUrl: lr.finalUrl || lr.requestedUrl || url,
     };
   } catch (e) {
-    return { error: String(e), available: false };
+    const msg = e.name === 'AbortError' ? 'PageSpeed timed out (site too slow to analyze)' : String(e.message || e);
+    return { available: false, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
