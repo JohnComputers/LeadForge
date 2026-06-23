@@ -163,10 +163,54 @@ tr.lead-row:hover{background:var(--panel-2)}
 .settings-row{display:flex;flex-direction:column;gap:6px;max-width:560px;margin-bottom:18px}
 .settings-row label{font-size:13px;font-weight:500}
 .settings-row .desc{font-size:12px;color:var(--txt-faint)}
-@media(max-width:860px){.shell{grid-template-columns:1fr}.side{position:fixed;z-index:30;transform:translateX(-100%);transition:.2s}.side.open{transform:none}.search-row{grid-template-columns:1fr 1fr}}
+.psi-warn{background:#f2c14e12;border:1px solid #f2c14e44;color:#ffd27a;padding:11px 13px;border-radius:8px;font-size:12px;line-height:1.5}
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;text-align:center}
+.metric .mk{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt-faint)}
+.metric .mv{display:block;font-size:15px;font-weight:600;font-family:var(--mono);margin-top:3px}
+
+/* ---------- Mobile ---------- */
+.menu-btn{display:none;position:fixed;top:14px;left:14px;z-index:35;width:40px;height:40px;border-radius:9px;background:var(--panel);border:1px solid var(--line-2);align-items:center;justify-content:center}
+body.authed .menu-btn{}
+.menu-btn svg{width:20px;height:20px;stroke:var(--txt)}
+.side-scrim{display:none;position:fixed;inset:0;background:#0008;z-index:29}
+.side-scrim.show{display:block}
+@media(max-width:860px){
+  .shell{grid-template-columns:1fr}
+  body.authed .menu-btn{display:flex}
+  .side{position:fixed;left:0;top:0;z-index:30;width:240px;transform:translateX(-100%);transition:transform .22s ease;box-shadow:0 0 50px #000a}
+  .side.open{transform:none}
+  .main{padding:64px 16px 28px}
+  .page-head{flex-direction:column;align-items:flex-start}
+  .page-head h2{font-size:19px}
+  .search-row{grid-template-columns:1fr 1fr}
+  .grid[style*="1fr 1fr"]{grid-template-columns:1fr !important}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .drawer{width:100%}
+  .toolbar{width:100%}
+  .search-inp{flex:1;min-width:0}
+  .dim-grid{grid-template-columns:1fr 1fr}
+  .metrics-row{grid-template-columns:1fr 1fr}
+  table{font-size:12px}
+  th,td{padding:9px 10px}
+  /* hide less-critical columns on phones */
+  .tbl-wrap th:nth-child(2),.tbl-wrap td:nth-child(2),
+  .tbl-wrap th:nth-child(7),.tbl-wrap td:nth-child(7){display:none}
+}
+@media(max-width:480px){
+  .search-row{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .auth-card{padding:26px 20px}
+  .dim-grid{grid-template-columns:1fr 1fr}
+  /* keep only the essentials in the leads table */
+  .tbl-wrap th:nth-child(3),.tbl-wrap td:nth-child(3){display:none}
+}
 </style>
 </head>
 <body>
+
+<button class="menu-btn" id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+<div class="side-scrim" id="sideScrim"></div>
 
 <div id="authView">
   <div class="auth-card">
@@ -342,10 +386,10 @@ import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, updateDoc,
 /* Replace with your Firebase project's config (console.firebase.google.com).
    Enable Email/Password + Google auth, and create a Firestore database. */
 const firebaseConfig = {
-  apiKey: "AIzaSyDAobfrYGzd8qLewbZkhSmFeWKMFXd6NKc",
-  authDomain: "leadforge-b26b2.firebaseapp.com",
-  projectId: "leadforge-b26b2",
-  appId: "1:296955114183:web:434249c6a6e27970f044e2",
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME.firebaseapp.com",
+  projectId: "REPLACE_ME",
+  appId: "REPLACE_ME",
 };
 const CONFIGURED = !firebaseConfig.apiKey.includes("REPLACE_ME");
 let app, auth, db, user=null, DEMO=false;
@@ -394,8 +438,9 @@ $('#googleBtn').onclick=async()=>{
 };
 $('#logoutBtn').onclick=async()=>{ if(CONFIGURED&&auth&&!DEMO) await signOut(auth); else {user=null;DEMO=false;showAuth();} };
 function enterDemo(){DEMO=true;user={uid:'demo',email:'demo@local'};enterApp();}
-function showAuth(){$('#appView').style.display='none';$('#authView').style.display='flex';}
+function showAuth(){document.body.classList.remove('authed');$('#appView').style.display='none';$('#authView').style.display='flex';}
 async function enterApp(){
+  document.body.classList.add('authed');
   $('#authView').style.display='none';$('#appView').style.display='block';
   $('#uem').textContent=user.email||'user';
   $('#uav').textContent=(user.email||'U')[0].toUpperCase();
@@ -434,7 +479,13 @@ async function auditWebsite(url){
   if(!w) return await psiOnly(url);
   const psi=localStorage.getItem(LS.psi);
   const u=new URL(w+'/audit'); u.searchParams.set('url',url); if(psi) u.searchParams.set('psiKey',psi);
-  const res=await fetch(u); if(!res.ok) throw new Error('Worker error '+res.status);
+  let res;
+  try{ res=await fetch(u); }
+  catch(e){ throw new Error('Cannot reach Worker — check the URL in Settings ('+(e.message||e)+')'); }
+  if(!res.ok){
+    let detail=''; try{ const j=await res.json(); detail=j.error||''; }catch{}
+    throw new Error('Worker error '+res.status+(detail?': '+detail:''));
+  }
   return await res.json();
 }
 async function psiOnly(url){
@@ -445,16 +496,24 @@ async function psiOnly(url){
     api.searchParams.set('url',u);api.searchParams.set('strategy',strategy);
     ['performance','seo','accessibility','best-practices'].forEach(c=>api.searchParams.append('category',c));
     if(key)api.searchParams.set('key',key);
-    try{const r=await fetch(api);if(!r.ok)return{available:false};const d=await r.json();
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),55000);
+    try{
+      const r=await fetch(api,{signal:ctrl.signal});
+      const text=await r.text(); let d;
+      try{ d=JSON.parse(text); }catch{ return {available:false,error:`Non-JSON (HTTP ${r.status})`}; }
+      if(!r.ok||d.error){ return {available:false,error:d.error?.message||('HTTP '+r.status),reason:d.error?.errors?.[0]?.reason||''}; }
       const cats=d.lighthouseResult?.categories||{},a=d.lighthouseResult?.audits||{};
       const p=c=>cats[c]?.score!=null?Math.round(cats[c].score*100):null;
       return{available:true,performance:p('performance'),seo:p('seo'),accessibility:p('accessibility'),
         bestPractices:p('best-practices'),lcpMs:a['largest-contentful-paint']?.numericValue??null,
-        cls:a['cumulative-layout-shift']?.numericValue??null,viewportPass:a['viewport']?.score===1};
-    }catch{return{available:false};}
+        fcpMs:a['first-contentful-paint']?.numericValue??null,tbtMs:a['total-blocking-time']?.numericValue??null,
+        cls:a['cumulative-layout-shift']?.numericValue??null,totalBytes:a['total-byte-weight']?.numericValue??null,
+        viewportPass:a['viewport']?.score===1};
+    }catch(e){ return {available:false,error:e.name==='AbortError'?'PageSpeed timed out':String(e.message||e)}; }
+    finally{ clearTimeout(timer); }
   }
   const[mobile,desktop]=await Promise.all([run('mobile'),run('desktop')]);
-  return{url:u,security:{https:u.startsWith('https'),validTls:u.startsWith('https'),error:'worker not set'},
+  return{url:u,security:{https:u.startsWith('https'),validTls:u.startsWith('https'),error:'worker not set — security/HTML checks skipped'},
     html:{error:'worker not set'},psi:{mobile,desktop}};
 }
 
@@ -586,7 +645,8 @@ function openDrawer(id){
   const a=l.audit;
   const dimHtml=a?Object.entries({Speed:'speed',Mobile:'mobile',SEO:'seo',Design:'design',Conversion:'conversion',Security:'security'}).map(([label,key])=>{
     const sc=a.scores[key],det=a.dimDetail&&a.dimDetail[key]?a.dimDetail[key].why:'';
-    return `<div class="dim"><div class="name"><span>${label}</span></div><div class="num">${sc}<span style="font-size:12px;color:var(--txt-faint)">/10</span></div><div class="why">${esc(det)}</div></div>`;
+    const disp = sc==null?'<span style="color:var(--txt-faint)">—</span>':sc;
+    return `<div class="dim"><div class="name"><span>${label}</span></div><div class="num">${disp}${sc==null?'':'<span style="font-size:12px;color:var(--txt-faint)">/10</span>'}</div><div class="why">${esc(det)}</div></div>`;
   }).join(''):'';
   const findHtml=a?a.findings.map(f=>`<div class="finding"><span class="dot ${f.severity}"></span><div class="ftext"><b>${esc(f.label)}</b>${f.detail?`<span>${esc(f.detail)}</span>`:''}</div></div>`).join(''):'';
   const o=l.outreach, href=/^https?:/.test(l.website)?l.website:'https://'+l.website;
@@ -603,6 +663,12 @@ function openDrawer(id){
     </div>
     <div class="drawer-body">
       ${a?`<div class="conf">Audit confidence <div class="bar"><i style="width:${a.confidence}%"></i></div><span class="mono">${a.confidence}%</span></div>`:''}
+      ${a&&a.psiError?`<div class="psi-warn">⚠ PageSpeed data unavailable: ${esc(a.psiError)}<br><span style="opacity:.8">Speed/SEO scored from limited signals. Common causes: site blocks Lighthouse, very slow/timeout, or API quota.</span></div>`:''}
+      ${l.error?`<div class="psi-warn">⚠ Audit error: ${esc(l.error)}</div>`:''}
+      ${a&&a.raw?.psi?.mobile?.available?`<div class="metrics-row">${[
+        ['LCP',a.raw.psi.mobile.lcpMs,'ms'],['FCP',a.raw.psi.mobile.fcpMs,'ms'],
+        ['TBT',a.raw.psi.mobile.tbtMs,'ms'],['CLS',a.raw.psi.mobile.cls,'']
+      ].filter(([,v])=>v!=null).map(([k,v,u])=>`<div class="metric"><span class="mk">${k}</span><span class="mv">${u==='ms'?Math.round(v):(Math.round(v*1000)/1000)}${u}</span></div>`).join('')}</div>`:''}
       ${l.summary?`<div><div class="sec-title">Executive Summary</div><div class="summary-box">${esc(l.summary)}</div></div>`:''}
       ${a?`<div><div class="sec-title">Audit Dimensions</div><div class="dim-grid">${dimHtml}</div></div>`:''}
       ${a?`<div><div class="sec-title">Opportunity Findings</div>${findHtml}</div>`:''}
@@ -736,10 +802,12 @@ $('#discImport').onclick=async()=>{
 function go(page){
   $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page));
   $$('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));
-  $('#side').classList.remove('open');
+  $('#side').classList.remove('open'); $('#sideScrim').classList.remove('show');
 }
 $$('.nav-item').forEach(n=>n.onclick=()=>go(n.dataset.page));
 $$('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));
+$('#menuBtn').onclick=()=>{$('#side').classList.toggle('open');$('#sideScrim').classList.toggle('show');};
+$('#sideScrim').onclick=()=>{$('#side').classList.remove('open');$('#sideScrim').classList.remove('show');};
 $('#saveSet').onclick=()=>{
   localStorage.setItem(LS.worker,$('#setWorker').value.trim());
   localStorage.setItem(LS.psi,$('#setPsi').value.trim());
